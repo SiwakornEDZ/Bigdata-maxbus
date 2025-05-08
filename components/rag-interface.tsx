@@ -45,12 +45,21 @@ export function RagInterface() {
     try {
       const response = await fetch("/api/rag/namespaces")
       const data = await response.json()
-      setNamespaces(data.namespaces || [])
-    } catch (error) {
+
+      if (response.ok) {
+        setNamespaces(data.namespaces || [])
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to fetch namespaces",
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
       console.error("Error fetching namespaces:", error)
       toast({
         title: "Error",
-        description: "Failed to fetch namespaces",
+        description: error.message || "Failed to fetch namespaces",
         variant: "destructive",
       })
     }

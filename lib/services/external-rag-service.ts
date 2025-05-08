@@ -1,4 +1,10 @@
-export const RAG_API_URL = process.env.RAG_API_URL || "https://your-rag-api.onrender.com"
+"use client"
+
+// ใช้ window.location.origin แทนการใช้ process.env ซึ่งเป็น Node.js specific
+export const RAG_API_URL =
+  typeof process !== "undefined" && process.env.RAG_API_URL
+    ? process.env.RAG_API_URL
+    : "https://your-rag-api.onrender.com"
 
 export async function uploadDocuments(files: File[], namespace = "default", deleteExisting = false) {
   const formData = new FormData()

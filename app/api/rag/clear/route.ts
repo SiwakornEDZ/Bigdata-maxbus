@@ -1,13 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { clearNamespace } from "@/lib/services/external-rag-service"
+
+// ใช้ URL จาก environment variable โดยตรง
+const RAG_API_URL = process.env.RAG_API_URL || "https://your-rag-api.onrender.com"
 
 export async function POST(request: NextRequest) {
   try {
-    const { namespace = "default" } = await request.json()
+    const body = await request.json()
+    const { namespace = "default" } = body
 
-    // Forward the request to the external RAG API
-    const result = await clearNamespace(namespace)
+    // ส่งคำขอไปยัง external API
+    const response = await fetch(`${RAG_API_URL}/clear`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        namespace,
+      }),
+    })
 
+    if (!response.ok) {
+      const errorData = await response.json()
+      return NextResponse.json({ error: errorData.error || "Failed to clear namespace" }, { status: response.status })
+    }
+
+    const result = await response.json()
     return NextResponse.json(result)
   } catch (error: any) {
     console.error("Error clearing namespace:", error)

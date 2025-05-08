@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
-import { RAG_API_URL } from "@/lib/services/external-rag-service"
+
+// ใช้ URL จาก environment variable โดยตรง
+const RAG_API_URL = process.env.RAG_API_URL || "https://your-rag-api.onrender.com"
 
 export async function GET() {
   return NextResponse.json({

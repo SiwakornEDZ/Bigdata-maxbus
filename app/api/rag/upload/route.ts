@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { uploadDocuments } from "@/lib/services/external-rag-service"
+
+// ใช้ URL จาก environment variable โดยตรง
+const RAG_API_URL = process.env.RAG_API_URL || "https://your-rag-api.onrender.com"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +16,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
     }
 
-    // Forward the request to the external RAG API
-    const result = await uploadDocuments(files, namespace, deleteExisting)
+    // สร้าง FormData ใหม่เพื่อส่งไปยัง external API
+    const newFormData = new FormData()
 
+    for (const file of files) {
+      newFormData.append("files", file)
+    }
+
+    newFormData.append("namespace", namespace)
+    newFormData.append("delete_existing", deleteExisting.toString())
+
+    // ส่งคำขอไปยัง external API
+    const response = await fetch(`${RAG_API_URL}/upload`, {
+      method: "POST",
+      body: newFormData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return NextResponse.json({ error: errorData.error || "Failed to upload documents" }, { status: response.status })
+    }
+
+    const result = await response.json()
     return NextResponse.json(result)
   } catch (error: any) {
     console.error("Error processing upload:", error)
