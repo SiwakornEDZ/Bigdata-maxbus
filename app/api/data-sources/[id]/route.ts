@@ -1,31 +1,29 @@
+import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
-import { type NextRequest, NextResponse } from "next/server"
 
-// ใช้รูปแบบที่เรียบง่ายที่สุดตามที่ Next.js คาดหวัง
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
+// ใช้รูปแบบที่เรียบง่ายที่สุดตามเอกสารของ Next.js
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const id = params.id
+
   try {
-    const id = context.params.id
+    const result = await sql`SELECT * FROM data_sources WHERE id = ${id}`
+    const dataSource = result[0]
 
-    const result = await sql`
-      SELECT * FROM data_sources WHERE id = ${id}
-    `
-
-    const dataSources = result.rows || result
-
-    if (!dataSources || dataSources.length === 0) {
+    if (!dataSource) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
-    return NextResponse.json(dataSources[0])
+    return NextResponse.json(dataSource)
   } catch (error) {
     console.error("Error fetching data source:", error)
     return NextResponse.json({ error: "Failed to fetch data source" }, { status: 500 })
   }
 }
 
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  const id = params.id
+
   try {
-    const id = context.params.id
     const body = await request.json()
     const { name, type, connection_details, status } = body
 
@@ -45,32 +43,32 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
       RETURNING *
     `
 
-    const updatedSources = result.rows || result
+    const updatedSource = result[0]
 
-    if (!updatedSources || updatedSources.length === 0) {
+    if (!updatedSource) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
-    return NextResponse.json(updatedSources[0])
+    return NextResponse.json(updatedSource)
   } catch (error) {
     console.error("Error updating data source:", error)
     return NextResponse.json({ error: "Failed to update data source" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
-  try {
-    const id = context.params.id
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const id = params.id
 
+  try {
     const result = await sql`
       DELETE FROM data_sources
       WHERE id = ${id}
       RETURNING id
     `
 
-    const deletedSources = result.rows || result
+    const deletedSource = result[0]
 
-    if (!deletedSources || deletedSources.length === 0) {
+    if (!deletedSource) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
