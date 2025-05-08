@@ -1,13 +1,31 @@
 import { sql } from "@/lib/db"
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+interface DataSource {
+  id: string
+  name: string
+  type: string
+  connection_details: Record<string, any>
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+interface Params {
+  params: {
+    id: string
+  }
+}
+
+export async function GET(request: NextRequest, { params }: Params): Promise<NextResponse> {
   try {
     const id = params.id
 
-    const dataSources = await sql`
+    const result = await sql`
       SELECT * FROM data_sources WHERE id = ${id}
     `
+
+    const dataSources = result.rows as DataSource[]
 
     if (dataSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
@@ -20,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: Params): Promise<NextResponse> {
   try {
     const id = params.id
     const body = await request.json()
@@ -42,18 +60,20 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       RETURNING *
     `
 
-    if (result.length === 0) {
+    const updatedSources = result.rows as DataSource[]
+
+    if (updatedSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
-    return NextResponse.json(result[0])
+    return NextResponse.json(updatedSources[0])
   } catch (error) {
     console.error("Error updating data source:", error)
     return NextResponse.json({ error: "Failed to update data source" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: Params): Promise<NextResponse> {
   try {
     const id = params.id
 
@@ -63,7 +83,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       RETURNING id
     `
 
-    if (result.length === 0) {
+    const deletedSources = result.rows as Pick<DataSource, "id">[]
+
+    if (deletedSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
