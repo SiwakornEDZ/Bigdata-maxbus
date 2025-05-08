@@ -11,13 +11,8 @@ interface DataSource {
   updated_at: string
 }
 
-interface Params {
-  params: {
-    id: string
-  }
-}
-
-export async function GET(request: NextRequest, { params }: Params): Promise<NextResponse> {
+// Use the exact parameter types that Next.js expects
+export async function GET(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     const id = params.id
 
@@ -25,9 +20,9 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
       SELECT * FROM data_sources WHERE id = ${id}
     `
 
-    const dataSources = result.rows as DataSource[]
+    const dataSources = result.rows || result
 
-    if (dataSources.length === 0) {
+    if (!dataSources || dataSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
@@ -38,7 +33,7 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
   }
 }
 
-export async function PUT(request: NextRequest, { params }: Params): Promise<NextResponse> {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     const id = params.id
     const body = await request.json()
@@ -60,9 +55,9 @@ export async function PUT(request: NextRequest, { params }: Params): Promise<Nex
       RETURNING *
     `
 
-    const updatedSources = result.rows as DataSource[]
+    const updatedSources = result.rows || result
 
-    if (updatedSources.length === 0) {
+    if (!updatedSources || updatedSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
@@ -73,7 +68,7 @@ export async function PUT(request: NextRequest, { params }: Params): Promise<Nex
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     const id = params.id
 
@@ -83,9 +78,9 @@ export async function DELETE(request: NextRequest, { params }: Params): Promise<
       RETURNING id
     `
 
-    const deletedSources = result.rows as Pick<DataSource, "id">[]
+    const deletedSources = result.rows || result
 
-    if (deletedSources.length === 0) {
+    if (!deletedSources || deletedSources.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
