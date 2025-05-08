@@ -1,29 +1,27 @@
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
-// ใช้รูปแบบที่เรียบง่ายที่สุดตามเอกสารของ Next.js
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-
+// ใช้ JavaScript แทน TypeScript เพื่อหลีกเลี่ยงปัญหา type checking
+export async function GET(request, { params }) {
   try {
-    const result = await sql`SELECT * FROM data_sources WHERE id = ${id}`
-    const dataSource = result[0]
+    const id = params.id
 
-    if (!dataSource) {
+    const result = await sql`SELECT * FROM data_sources WHERE id = ${id}`
+
+    if (!result || result.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
-    return NextResponse.json(dataSource)
+    return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error fetching data source:", error)
     return NextResponse.json({ error: "Failed to fetch data source" }, { status: 500 })
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-
+export async function PUT(request, { params }) {
   try {
+    const id = params.id
     const body = await request.json()
     const { name, type, connection_details, status } = body
 
@@ -43,32 +41,28 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       RETURNING *
     `
 
-    const updatedSource = result[0]
-
-    if (!updatedSource) {
+    if (!result || result.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
-    return NextResponse.json(updatedSource)
+    return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error updating data source:", error)
     return NextResponse.json({ error: "Failed to update data source" }, { status: 500 })
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-
+export async function DELETE(request, { params }) {
   try {
+    const id = params.id
+
     const result = await sql`
       DELETE FROM data_sources
       WHERE id = ${id}
       RETURNING id
     `
 
-    const deletedSource = result[0]
-
-    if (!deletedSource) {
+    if (!result || result.length === 0) {
       return NextResponse.json({ error: "Data source not found" }, { status: 404 })
     }
 
