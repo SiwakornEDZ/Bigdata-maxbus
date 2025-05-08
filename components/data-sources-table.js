@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, CheckCircle, Edit, Trash2 } from "lucide-react"
 
-export default function DataSourcesTable() {
+export function DataSourcesTable() {
   const [dataSources, setDataSources] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -122,3 +122,6 @@ export default function DataSourcesTable() {
     </Card>
   )
 }
+
+// เพิ่ม default export เพื่อความเข้ากันได้กับโค้ดเดิม
+export default DataSourcesTable

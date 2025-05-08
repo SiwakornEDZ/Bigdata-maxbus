@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db"
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request, { params }) {
   try {
     const id = params.id
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request, { params }) {
   try {
     const id = params.id
     const body = await request.json()
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request, { params }) {
   try {
     const id = params.id
 
