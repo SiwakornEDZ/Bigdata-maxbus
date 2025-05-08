@@ -1,20 +1,15 @@
 import { sql } from "@/lib/db"
 import { type NextRequest, NextResponse } from "next/server"
 
-interface DataSource {
-  id: string
-  name: string
-  type: string
-  connection_details: Record<string, any>
-  status: string
-  created_at: string
-  updated_at: string
-}
+// ลบ interface DataSource ที่ไม่จำเป็นออก
 
-// Use the exact parameter types that Next.js expects
-export async function GET(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
+// แก้ไขฟังก์ชัน GET ให้มีลายเซ็นที่ถูกต้องตามที่ Next.js คาดหวัง
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = params.id
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+    }
 
     const result = await sql`
       SELECT * FROM data_sources WHERE id = ${id}
@@ -33,9 +28,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
+// แก้ไขฟังก์ชัน PUT ให้มีลายเซ็นที่ถูกต้องตามที่ Next.js คาดหวัง
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = params.id
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+    }
+
     const body = await request.json()
     const { name, type, connection_details, status } = body
 
@@ -68,9 +68,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
+// แก้ไขฟังก์ชัน DELETE ให้มีลายเซ็นที่ถูกต้องตามที่ Next.js คาดหวัง
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = params.id
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 })
+    }
 
     const result = await sql`
       DELETE FROM data_sources
