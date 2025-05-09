@@ -11,14 +11,15 @@ export async function POST(request: Request) {
 
     const result = await executeQueryFormatted(query, params)
 
-    return NextResponse.json(result)
+    if (result.success) {
+      return NextResponse.json(result)
+    } else {
+      return NextResponse.json({ success: false, error: result.error || "Failed to execute query" }, { status: 500 })
+    }
   } catch (error) {
-    console.error("Error executing query:", error)
+    console.error("Error in execute query route:", error)
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error executing query",
-      },
+      { success: false, error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 },
     )
   }
