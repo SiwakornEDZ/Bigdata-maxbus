@@ -1,37 +1,17 @@
-import { neon, neonConfig } from "@neondatabase/serverless"
+import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
-import type { ApiResponse, QueryResult } from "@/types"
 
-// Configure neon to use WebSockets
-neonConfig.webSocketConstructor = globalThis.WebSocket
-neonConfig.fetchConnectionCache = true
-
-// Check if DATABASE_URL is defined
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not defined")
+// Define the type for API responses
+export interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: string
 }
 
-// Create SQL client
-export const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null
+let sql: any
 
-// Create connection pool for more complex operations
-let pool: Pool | null = null
-
-/**
- * Get database connection pool
- */
-export function getPool(): Pool {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not defined")
-  }
-
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    })
-  }
-
-  return pool
+if (process.env.DATABASE_URL) {
+  sql = neon(process.env.DATABASE_URL)
 }
 
 /**
@@ -46,11 +26,11 @@ export async function executeQuery<T = Record<string, unknown>>(
       throw new Error("Database connection not initialized")
     }
 
-    const result = await sql.raw(query, params)
+    const result = await sql(query, params)
 
     return {
       success: true,
-      data: result.rows as T[],
+      data: result as T[],
     }
   } catch (error) {
     console.error("Error executing query:", error)
@@ -72,18 +52,18 @@ export async function executeQueryFormatted(query: string, params: unknown[] = [
     }
 
     const startTime = performance.now()
-    const result = await sql.raw(query, params)
+    const result = await sql(query, params)
     const executionTime = performance.now() - startTime
 
     // Extract column names from the first row
-    const columns = result.rows.length > 0 ? Object.keys(result.rows[0]) : []
+    const columns = result.length > 0 ? Object.keys(result[0]) : []
 
     return {
       success: true,
       data: {
         columns,
-        rows: result.rows,
-        rowCount: result.rowCount,
+        rows: result,
+        rowCount: result.length,
         executionTime,
       },
     }
@@ -100,46 +80,17 @@ export async function executeQueryFormatted(query: string, params: unknown[] = [
 /**
  * Check database connection
  */
-export async function testConnection(): Promise<boolean> {
+export async function testConnection(): Promise<{ connected: boolean; message?: string }> {
   try {
     if (!sql) {
-      return false
+      return { connected: false, message: "Database connection not initialized" }
     }
 
     await sql`SELECT 1`
-    return true
+    return { connected: true }
   } catch (error) {
     console.error("Database connection check failed:", error)
-    return false
-  }
-}
-
-/**
- * Close database connections
- */
-export async function closeConnections(): Promise<void> {
-  if (pool) {
-    await pool.end()
-    pool = null
-  }
-}
-
-/**
- * Transaction helper
- */
-export async function withTransaction<T>(callback: (client: any) => Promise<T>): Promise<T> {
-  const client = await getPool().connect()
-
-  try {
-    await client.query("BEGIN")
-    const result = await callback(client)
-    await client.query("COMMIT")
-    return result
-  } catch (error) {
-    await client.query("ROLLBACK")
-    throw error
-  } finally {
-    client.release()
+    return { connected: false, message: error instanceof Error ? error.message : "Unknown error" }
   }
 }
 
@@ -156,34 +107,6 @@ export function formatBytes(bytes: number, decimals = 2): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
   return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
-}
-
-/**
- * Get all tables in the database
- */
-export async function getAllTables() {
-  try {
-    if (!sql) {
-      throw new Error("Database connection not initialized")
-    }
-
-    const result = await sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `
-
-    return {
-      success: true,
-      tables: result.map((row) => row.table_name),
-    }
-  } catch (error) {
-    console.error("Error getting tables:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error getting tables",
-    }
-  }
 }
 
 /**
@@ -212,6 +135,34 @@ export async function tableExists(tableName: string): Promise<boolean> {
 }
 
 /**
+ * Get all tables in the database
+ */
+export async function getAllTables() {
+  try {
+    if (!sql) {
+      throw new Error("Database connection not initialized")
+    }
+
+    const result = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `
+
+    return {
+      success: true,
+      tables: result.map((row: any) => row.table_name),
+    }
+  } catch (error) {
+    console.error("Error getting tables:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error getting tables",
+    }
+  }
+}
+
+/**
  * Initialize database with required tables
  */
 export async function initializeDatabase() {
@@ -230,7 +181,7 @@ export async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -243,8 +194,8 @@ export async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(50) NOT NULL,
-        connection_string TEXT,
-        created_by INTEGER REFERENCES users(id),
+        connection_details JSONB,
+        status VARCHAR(50) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -254,24 +205,40 @@ export async function initializeDatabase() {
     await sql`
       CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(50) NOT NULL,
         description TEXT,
-        query TEXT,
-        created_by INTEGER REFERENCES users(id),
+        created_by VARCHAR(255) NOT NULL,
+        status VARCHAR(50) DEFAULT 'scheduled',
+        scheduled_for TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
-    // Create sql_history table if it doesn't exist
+    // Create system_logs table if it doesn't exist
     await sql`
-      CREATE TABLE IF NOT EXISTS sql_history (
+      CREATE TABLE IF NOT EXISTS system_logs (
+        id SERIAL PRIMARY KEY,
+        log_id VARCHAR(255) NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        service VARCHAR(255) NOT NULL,
+        level VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        details JSONB
+      )
+    `
+
+    // Create query_history table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS query_history (
         id SERIAL PRIMARY KEY,
         query TEXT NOT NULL,
         user_id INTEGER REFERENCES users(id),
         executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         execution_time INTEGER,
-        row_count INTEGER
+        row_count INTEGER,
+        status VARCHAR(50) DEFAULT 'completed'
       )
     `
 
@@ -282,21 +249,91 @@ export async function initializeDatabase() {
         name VARCHAR(255) NOT NULL,
         description TEXT,
         query_text TEXT NOT NULL,
-        user_id INTEGER REFERENCES users(id),
+        category VARCHAR(50) DEFAULT 'general',
+        created_by VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        execution_count INTEGER DEFAULT 0,
+        last_executed_at TIMESTAMP
       )
     `
 
-    // Seed admin user if users table is empty
-    const userCount = await sql`SELECT COUNT(*) FROM users`
-    if (userCount[0].count === "0") {
-      // Default password: admin123 (in a real app, this would be hashed)
-      await sql`
-        INSERT INTO users (name, email, password, role)
-        VALUES ('Admin User', 'admin@example.com', 'admin123', 'admin')
-      `
-    }
+    // Create storage_metrics table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS storage_metrics (
+        id SERIAL PRIMARY KEY,
+        total_space BIGINT NOT NULL,
+        used_space BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // Create storage_activities table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS storage_activities (
+        id SERIAL PRIMARY KEY,
+        action VARCHAR(50) NOT NULL,
+        resource VARCHAR(255) NOT NULL,
+        size BIGINT NOT NULL,
+        user_id INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // Create storage_distribution table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS storage_distribution (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        size BIGINT NOT NULL,
+        color VARCHAR(50) NOT NULL
+      )
+    `
+
+    // Create analytics_overview table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS analytics_overview (
+        id SERIAL PRIMARY KEY,
+        total_users INTEGER NOT NULL,
+        active_users INTEGER NOT NULL,
+        total_queries INTEGER NOT NULL,
+        total_data_sources INTEGER NOT NULL,
+        total_storage BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    // Create analytics_usage table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS analytics_usage (
+        id SERIAL PRIMARY KEY,
+        date DATE NOT NULL,
+        queries INTEGER NOT NULL,
+        data_processed BIGINT NOT NULL,
+        active_users INTEGER NOT NULL
+      )
+    `
+
+    // Create analytics_performance table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS analytics_performance (
+        id SERIAL PRIMARY KEY,
+        date DATE NOT NULL,
+        response_time INTEGER NOT NULL,
+        cpu_usage INTEGER NOT NULL,
+        memory_usage INTEGER NOT NULL
+      )
+    `
+
+    // Create analytics_user_activities table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS analytics_user_activities (
+        id SERIAL PRIMARY KEY,
+        activity VARCHAR(255) NOT NULL,
+        count INTEGER NOT NULL,
+        color VARCHAR(50) NOT NULL
+      )
+    `
 
     return { success: true }
   } catch (error) {
@@ -307,3 +344,27 @@ export async function initializeDatabase() {
     }
   }
 }
+
+export async function withTransaction(callback: (client: any) => Promise<any>): Promise<any> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not defined")
+  }
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const client = await pool.connect()
+
+  try {
+    await client.query("BEGIN")
+    const result = await callback(client)
+    await client.query("COMMIT")
+    return result
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  } finally {
+    client.release()
+    await pool.end()
+  }
+}
+
+export type QueryResult = any

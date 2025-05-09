@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 import { initializeDatabase } from "@/lib/db"
-import { sql } from "@vercel/postgres"
-import { tableExists } from "@/lib/db"
 
 export async function POST() {
   try {
@@ -18,13 +16,15 @@ export async function POST() {
   } catch (error) {
     console.error("Error initializing database:", error)
     return NextResponse.json(
-      { success: false, error: error.message || "Unknown error initializing database" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error initializing database",
+      },
       { status: 500 },
     )
   }
 }
 
-// Add a GET method to check if the database is initialized
 export async function GET() {
   try {
     // Check if DATABASE_URL is set
@@ -34,18 +34,20 @@ export async function GET() {
 
     // Check database connection
     try {
+      const { sql } = await import("@/lib/db")
       await sql`SELECT 1`
     } catch (error) {
       return NextResponse.json(
         {
           initialized: false,
-          error: `Database connection failed: ${error.message}`,
+          error: `Database connection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         },
         { status: 200 },
       )
     }
 
     // Check if users table exists
+    const { tableExists } = await import("@/lib/db")
     const usersTableExists = await tableExists("users")
 
     return NextResponse.json(
@@ -60,7 +62,7 @@ export async function GET() {
     return NextResponse.json(
       {
         initialized: false,
-        error: `Error checking database: ${error.message}`,
+        error: `Error checking database: ${error instanceof Error ? error.message : "Unknown error"}`,
       },
       { status: 200 },
     )

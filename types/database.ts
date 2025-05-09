@@ -7,13 +7,8 @@ export interface ColumnInfo {
 // กำหนด type สำหรับข้อมูลตาราง
 export interface TableInfo {
   name: string
-  columns: {
-    name: string
-    type: string
-    nullable: boolean
-  }[]
-  sampleData: any[]
   rowCount: number
+  size: string
 }
 
 export interface TableExistsResponse {
@@ -47,10 +42,10 @@ export interface ImportJob {
 
 // กำหนด type สำหรับผลลัพธ์ของ query
 export interface QueryResult {
-  success: boolean
-  data?: any[]
-  error?: string
-  code?: string
+  columns: string[]
+  rows: Record<string, any>[]
+  rowCount: number
+  executionTime: number
 }
 
 export interface User {
@@ -64,9 +59,11 @@ export interface User {
 
 export interface DatabaseStats {
   tableCount: number
-  tables: {
-    name: string
-    rowCount: number
-    columnCount: number
-  }[]
+  totalSize: string
+  tables: TableInfo[]
+}
+
+export interface TableSchema {
+  name: string
+  columns: ColumnInfo[]
 }
