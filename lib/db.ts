@@ -1,8 +1,9 @@
 import { neon } from "@neondatabase/serverless"
 
-// สร้าง SQL client จาก connection string
+// แก้ไขฟังก์ชัน createSqlClient เพื่อตรวจสอบ process.env ก่อนเข้าถึง DATABASE_URL
 const createSqlClient = () => {
-  if (!process.env.DATABASE_URL) {
+  // ตรวจสอบว่า process.env มีอยู่จริงก่อนเข้าถึง DATABASE_URL
+  if (!process.env || !process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not defined")
     throw new Error("DATABASE_URL is not configured")
   }

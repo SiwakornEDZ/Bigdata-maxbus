@@ -1,104 +1,145 @@
-"use client"
+// External RAG Service client
 
-// ใช้ window.location.origin แทนการใช้ process.env ซึ่งเป็น Node.js specific
-export const RAG_API_URL =
-  typeof process !== "undefined" && process.env.RAG_API_URL
-    ? process.env.RAG_API_URL
-    : "https://your-rag-api.onrender.com"
-
-export async function uploadDocuments(files: File[], namespace = "default", deleteExisting = false) {
-  const formData = new FormData()
-
-  files.forEach((file) => {
-    formData.append("files", file)
-  })
-
-  formData.append("namespace", namespace)
-  formData.append("delete_existing", deleteExisting.toString())
-
-  const response = await fetch(`${RAG_API_URL}/upload`, {
-    method: "POST",
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Failed to upload documents")
+class ExternalRagService {
+  constructor() {
+    this.apiUrl = process.env.RAG_API_URL || "http://localhost:8000"
   }
 
-  return await response.json()
-}
+  async uploadDocument(buffer, filename, contentType, namespace = "default") {
+    try {
+      const formData = new FormData()
+      const blob = new Blob([buffer], { type: contentType })
+      formData.append("file", blob, filename)
+      formData.append("namespace", namespace)
 
-export async function askQuestion(query: string, namespace = "default", returnSources = false, verbose = false) {
-  const response = await fetch(`${RAG_API_URL}/ask`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query,
-      namespace,
-      return_sources: returnSources,
-      verbose,
-    }),
-  })
+      const response = await fetch(`${this.apiUrl}/upload`, {
+        method: "POST",
+        body: formData,
+      })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Failed to process query")
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to upload document")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error uploading document:", error)
+      throw error
+    }
   }
 
-  return await response.json()
-}
+  async askQuestion(query, namespace = "default") {
+    try {
+      const response = await fetch(`${this.apiUrl}/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          namespace,
+        }),
+      })
 
-export async function clearNamespace(namespace = "default") {
-  const response = await fetch(`${RAG_API_URL}/clear`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      namespace,
-    }),
-  })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to process question")
+      }
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Failed to clear namespace")
+      return await response.json()
+    } catch (error) {
+      console.error("Error asking question:", error)
+      throw error
+    }
   }
 
-  return await response.json()
-}
+  async clearNamespace(namespace = "default") {
+    try {
+      const response = await fetch(`${this.apiUrl}/clear`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          namespace,
+        }),
+      })
 
-export async function getNamespaces() {
-  const response = await fetch(`${RAG_API_URL}/namespaces`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to clear namespace")
+      }
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Failed to list namespaces")
+      return await response.json()
+    } catch (error) {
+      console.error("Error clearing namespace:", error)
+      throw error
+    }
   }
 
-  return await response.json()
-}
+  async getNamespaces() {
+    try {
+      const response = await fetch(`${this.apiUrl}/namespaces`)
 
-export async function getStatus() {
-  const response = await fetch(`${RAG_API_URL}/status`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to fetch namespaces")
+      }
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Failed to get status")
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching namespaces:", error)
+      throw error
+    }
   }
 
-  return await response.json()
-}
+  async getNamespaceStatus(namespace = "default") {
+    try {
+      const response = await fetch(`${this.apiUrl}/status?namespace=${namespace}`)
 
-export async function checkHealth() {
-  const response = await fetch(`${RAG_API_URL}/health`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to fetch namespace status")
+      }
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Health check failed")
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching namespace status:", error)
+      throw error
+    }
   }
 
-  return await response.json()
+  async checkHealth() {
+    try {
+      const response = await fetch(`${this.apiUrl}/health`)
+
+      if (!response.ok) {
+        return { status: "error", message: "RAG service is not healthy" }
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error checking RAG service health:", error)
+      return { status: "error", message: error.message }
+    }
+  }
+
+  async getServiceInfo() {
+    try {
+      const response = await fetch(`${this.apiUrl}/info`)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Failed to fetch RAG service info")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching RAG service info:", error)
+      throw error
+    }
+  }
 }
+
+export const externalRagService = new ExternalRagService()
