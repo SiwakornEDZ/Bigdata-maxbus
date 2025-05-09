@@ -3,10 +3,10 @@ import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from "@/components/auth-context"
-import { DatabaseInitializer } from "@/components/database-initializer"
-import { NotificationProvider } from "@/components/notification-provider"
-import { EnvCheckerWrapper } from "@/components/env-checker-wrapper"
+import { AuthProvider } from "@/lib/auth/auth-provider"
+import { DatabaseInitializer } from "@/components/database/database-initializer"
+import { NotificationProvider } from "@/components/notification/notification-provider"
+import { EnvCheckerWrapper } from "@/components/env/env-checker-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 

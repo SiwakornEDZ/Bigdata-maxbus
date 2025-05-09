@@ -1,75 +1,38 @@
+import { NextResponse } from "next/server"
+import { testConnection, getAllTables } from "@/lib/db"
+
 export async function GET() {
   try {
-    // ตรวจสอบว่ามี environment variables ที่จำเป็นหรือไม่
-    const envVars = {
-      DATABASE_URL: process.env && process.env.DATABASE_URL ? "set" : "not set",
-      JWT_SECRET: process.env && process.env.JWT_SECRET ? "set" : "not set",
-      NODE_ENV: process.env && process.env.NODE_ENV ? process.env.NODE_ENV : "development",
-    }
+    // Check for required environment variables
+    const requiredEnvVars = ["DATABASE_URL"]
+    const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName])
 
+    // Check database connection if DATABASE_URL is available
     let databaseConnected = false
-    let databaseError = null
     let databaseTables = []
 
-    // ทดสอบการเชื่อมต่อฐานข้อมูลเฉพาะเมื่อมี DATABASE_URL
-    if (envVars.DATABASE_URL === "set") {
-      try {
-        // Import เฉพาะเมื่อต้องการใช้งาน
-        const { testConnection, getAllTables } = await import("@/lib/db")
+    if (!missingEnvVars.includes("DATABASE_URL")) {
+      const connectionResult = await testConnection()
+      databaseConnected = connectionResult.connected
 
-        if (typeof testConnection !== "function") {
-          throw new Error("testConnection is not a function")
+      if (databaseConnected) {
+        const tablesResult = await getAllTables()
+        if (tablesResult.tables) {
+          databaseTables = tablesResult.tables
         }
-
-        const connectionTest = await testConnection()
-        databaseConnected = connectionTest.connected
-        databaseError = connectionTest.error
-
-        if (databaseConnected && typeof getAllTables === "function") {
-          try {
-            databaseTables = await getAllTables()
-          } catch (tablesError) {
-            console.error("Error getting tables:", tablesError)
-            databaseTables = []
-          }
-        }
-      } catch (dbError) {
-        console.error("Database test error:", dbError)
-        databaseError = dbError.message || "Database connection failed"
-        databaseConnected = false
       }
-    } else {
-      databaseError = "DATABASE_URL environment variable is not set"
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        envVars,
-        databaseConnected,
-        databaseError,
-        databaseTables: databaseTables || [],
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    )
+    return NextResponse.json({
+      databaseConnected,
+      databaseTables,
+      missingEnvVars: missingEnvVars.length > 0 ? missingEnvVars : null,
+    })
   } catch (error) {
     console.error("Error checking environment:", error)
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "Unknown error checking environment",
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
+    return NextResponse.json(
+      { error: `Error checking environment: ${error.message || "Unknown error"}` },
+      { status: 500 },
     )
   }
 }

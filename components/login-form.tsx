@@ -14,7 +14,7 @@ import Link from "next/link"
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const { login, loading } = useAuth()
+  const { login, isLoading } = useAuth() // Changed from 'loading' to 'isLoading'
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,11 +33,11 @@ export function LoginForm() {
       const success = await login(email, password)
 
       if (!success) {
-        // ข้อความข้อผิดพลาดจะถูกแสดงโดย login function
+        // Error message will be shown by the login function
         return
       }
 
-      // ถ้าสำเร็จ login function จะนำทางไปที่หน้า dashboard
+      // If successful, the login function will navigate to the dashboard
     } catch (error) {
       console.error("Login form error:", error)
       toast({
@@ -82,8 +82,10 @@ export function LoginForm() {
               required
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {" "}
+            {/* Changed from 'loading' to 'isLoading' */}
+            {isLoading ? "Logging in..." : "Login"} {/* Changed from 'loading' to 'isLoading' */}
           </Button>
         </form>
       </CardContent>
