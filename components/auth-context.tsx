@@ -13,7 +13,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  isLoading: boolean // Changed from 'loading' to 'isLoading'
+  loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   register: (name: string, email: string, password: string) => Promise<boolean>
@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true) // Changed from 'loading' to 'isLoading'
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           typeof window !== "undefined" &&
           (window.location.pathname === "/login" || window.location.pathname === "/register")
         ) {
-          setIsLoading(false) // Changed from 'setLoading' to 'setIsLoading'
+          setLoading(false)
           return
         }
 
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include",
+          credentials: "include", // ส่ง cookies ไปด้วย
         })
 
         if (res.ok) {
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Auth check error:", error)
       } finally {
-        setIsLoading(false) // Changed from 'setLoading' to 'setIsLoading'
+        setLoading(false)
       }
     }
 
@@ -67,14 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      setIsLoading(true) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(true)
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
-        credentials: "include",
+        credentials: "include", // ส่ง cookies ไปด้วย
       })
 
       const data = await res.json()
@@ -102,20 +102,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       return false
     } finally {
-      setIsLoading(false) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(false)
     }
   }
 
   // Logout function
   const logout = async (): Promise<void> => {
     try {
-      setIsLoading(true) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(true)
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        credentials: "include", // ส่ง cookies ไปด้วย
       })
 
       if (!response.ok) {
@@ -137,21 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: error.message || "An error occurred during logout.",
       })
     } finally {
-      setIsLoading(false) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(false)
     }
   }
 
   // Register function
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     try {
-      setIsLoading(true) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(true)
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name, email, password }),
-        credentials: "include",
+        credentials: "include", // ส่ง cookies ไปด้วย
       })
 
       const data = await res.json()
@@ -177,11 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       return false
     } finally {
-      setIsLoading(false) // Changed from 'setLoading' to 'setIsLoading'
+      setLoading(false)
     }
   }
 
-  return <AuthContext.Provider value={{ user, isLoading, login, logout, register }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, login, logout, register }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
@@ -191,3 +191,4 @@ export function useAuth() {
   }
   return context
 }
+

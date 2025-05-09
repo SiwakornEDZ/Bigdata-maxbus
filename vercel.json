@@ -1,5 +1,6 @@
 {
-  "buildCommand": "next build",
-  "installCommand": "npm install --no-optional --no-package-lock --force",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --no-optional",
   "framework": "nextjs"
 }
+

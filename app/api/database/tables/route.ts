@@ -1,20 +1,50 @@
 import { NextResponse } from "next/server"
-import { getAllTables } from "@/lib/db"
+import { sql } from "@/lib/db"
+import { getCurrentUser } from "@/lib/auth"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const result = await getAllTables()
-
-    if (result.success) {
-      return NextResponse.json(result)
-    } else {
-      return NextResponse.json({ success: false, error: result.error || "Failed to get tables" }, { status: 500 })
+    // Check authentication
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // Get system tables (excluding PostgreSQL internal tables)
+    const systemTables = await sql`
+      SELECT table_name as name, 'system' as type
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name NOT LIKE 'pg_%'
+      AND table_name NOT IN (
+        SELECT table_name 
+        FROM import_jobs 
+        WHERE status = 'completed'
+      )
+      ORDER BY table_name
+    `
+
+    // Get imported tables
+    const importedTables = await sql`
+      SELECT table_name as name, 'imported' as type
+      FROM import_jobs
+      WHERE status = 'completed'
+      AND created_by = ${user.email}
+      ORDER BY table_name
+    `
+
+    // Combine both types of tables
+    const tables = [...systemTables, ...importedTables]
+
+    return NextResponse.json(tables)
   } catch (error) {
-    console.error("Error in get tables route:", error)
+    console.error("Error fetching database tables:", error)
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Failed to fetch database tables",
+      },
       { status: 500 },
     )
   }
 }
+

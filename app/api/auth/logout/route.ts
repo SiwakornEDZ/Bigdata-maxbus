@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@/lib/utils/api-handler"
-import { clearAuthCookie } from "@/lib/auth/auth-utils"
 
-async function logoutHandler(): Promise<NextResponse> {
-  const response = NextResponse.json({
-    success: true,
-    message: "Logged out successfully",
+export async function POST() {
+  const response = NextResponse.json({ success: true })
+
+  // Clear the auth cookie
+  response.cookies.set({
+    name: "auth-token",
+    value: "",
+    expires: new Date(0),
+    path: "/",
   })
-
-  clearAuthCookie(response)
 
   return response
 }
 
-export const POST = createApiHandler({
-  POST: logoutHandler,
-})

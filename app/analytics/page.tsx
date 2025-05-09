@@ -1,5 +1,3 @@
-"use client"
-
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AnalyticsDashboard } from "@/components/analytics-dashboard"
 import { LineChart } from "lucide-react"
@@ -19,3 +17,4 @@ export default function AnalyticsPage() {
     </DashboardLayout>
   )
 }
+

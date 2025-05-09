@@ -167,3 +167,4 @@ export function SqlHistory({ onSelectQuery }: SqlHistoryProps) {
     </div>
   )
 }
+

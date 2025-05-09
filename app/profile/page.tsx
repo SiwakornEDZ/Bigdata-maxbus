@@ -4,3 +4,4 @@ export default function ProfileRedirect() {
   redirect("/simple-profile")
   return null
 }
+

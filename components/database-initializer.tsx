@@ -115,23 +115,16 @@ export function DatabaseInitializer() {
           const data = await response.json()
           setEnvStatus(data)
 
-          // ตรวจสอบว่า data มีค่าและมี databaseConnected ก่อนใช้งาน
-          if (data && typeof data.databaseConnected !== "undefined") {
-            if (data.databaseConnected) {
-              // Check if users table exists
-              if (data.databaseTables && data.databaseTables.includes("users")) {
-                setIsInitialized(true)
-                setShowDialog(false)
-              } else {
-                setShowDialog(true)
-              }
+          if (data.databaseConnected) {
+            // Check if users table exists
+            if (data.databaseTables.includes("users")) {
+              setIsInitialized(true)
+              setShowDialog(false)
             } else {
-              setError(data.databaseError || "Database connection failed")
               setShowDialog(true)
             }
           } else {
-            // กรณีที่ไม่มีข้อมูลเกี่ยวกับการเชื่อมต่อฐานข้อมูล
-            setError("Could not determine database connection status")
+            setError(data.databaseError || "Database connection failed")
             setShowDialog(true)
           }
         } catch (fetchError) {
@@ -215,3 +208,4 @@ export function DatabaseInitializer() {
     </Dialog>
   )
 }
+

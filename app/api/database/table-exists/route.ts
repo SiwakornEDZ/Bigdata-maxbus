@@ -1,23 +1,21 @@
-import { NextResponse } from "next/server"
-import { tableExists } from "@/lib/db"
+import { type NextRequest, NextResponse } from "next/server"
+import { databaseService } from "@/lib/services/database-service"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const tableName = searchParams.get("name")
+    const searchParams = request.nextUrl.searchParams
+    const tableName = searchParams.get("table")
 
     if (!tableName) {
-      return NextResponse.json({ success: false, error: "Table name is required" }, { status: 400 })
+      return NextResponse.json({ error: "Table name is required" }, { status: 400 })
     }
 
-    const exists = await tableExists(tableName)
+    const exists = await databaseService.tableExists(tableName)
 
-    return NextResponse.json({ success: true, exists })
+    return NextResponse.json({ exists })
   } catch (error) {
-    console.error("Error in table exists route:", error)
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 },
-    )
+    console.error("Error checking if table exists:", error)
+    return NextResponse.json({ error: "Failed to check if table exists" }, { status: 500 })
   }
 }
+

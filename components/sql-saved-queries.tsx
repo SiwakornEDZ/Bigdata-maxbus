@@ -380,3 +380,4 @@ export function SqlSavedQueries({ onSelectQuery }: SqlSavedQueriesProps) {
     </div>
   )
 }
+

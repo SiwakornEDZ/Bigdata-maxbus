@@ -9,3 +9,4 @@ export function MainNav() {
     </div>
   ) // We're using the sidebar instead
 }
+

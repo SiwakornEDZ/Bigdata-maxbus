@@ -215,3 +215,4 @@ export function SqlResults({ results }: SqlResultsProps) {
     </div>
   )
 }
+

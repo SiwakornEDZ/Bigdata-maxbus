@@ -1,71 +1,44 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createApiHandler } from "@/lib/utils/api-handler"
-import { validateData, userCredentialsSchema } from "@/lib/utils/validation"
-import { comparePasswords, generateAuthToken, setAuthCookie, formatAuthResult } from "@/lib/auth/auth-utils"
-import { executeQuery } from "@/lib/db"
-import type { User } from "@/types"
+import { login } from "@/lib/auth"
 
-async function loginHandler(req: NextRequest): Promise<NextResponse> {
-  // Parse and validate request body
-  const body = await req.json()
-  const validation = await validateData(userCredentialsSchema, body)
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password } = await request.json()
 
-  if (!validation.success) {
+    if (!email || !password) {
+      return NextResponse.json({ success: false, message: "Email and password are required" }, { status: 400 })
+    }
+
+    const result = await login(email, password)
+
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: result.message || "Invalid credentials" }, { status: 401 })
+    }
+
+    // Set cookie with JWT token
+    const response = NextResponse.json({ success: true, user: result.user })
+
+    response.cookies.set({
+      name: "auth-token",
+      value: result.token || "",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax", // Changed from strict to lax for better compatibility
+      maxAge: 60 * 60 * 24, // 1 day
+      path: "/",
+    })
+
+    return response
+  } catch (error: any) {
+    console.error("Login API error:", error)
     return NextResponse.json(
-      { success: false, error: validation.error?.message, errors: validation.error?.errors },
-      { status: 422 },
+      {
+        success: false,
+        message: "An error occurred during login",
+        error: error.message,
+      },
+      { status: 500 },
     )
   }
-
-  const { email, password } = validation.data
-
-  // Find user by email
-  const result = await executeQuery<User & { password: string }>("SELECT * FROM users WHERE email = $1", [email])
-
-  if (!result.success || !result.data || result.data.length === 0) {
-    return NextResponse.json(formatAuthResult(false, "Invalid credentials"), { status: 401 })
-  }
-
-  const user = result.data[0]
-
-  // Verify password
-  const isPasswordValid = await comparePasswords(password, user.password)
-
-  if (!isPasswordValid) {
-    return NextResponse.json(formatAuthResult(false, "Invalid credentials"), { status: 401 })
-  }
-
-  // Generate token
-  const token = await generateAuthToken({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-  })
-
-  // Create response
-  const response = NextResponse.json(
-    formatAuthResult(
-      true,
-      "Login successful",
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      token,
-    ),
-    { status: 200 },
-  )
-
-  // Set auth cookie
-  setAuthCookie(response, token)
-
-  return response
 }
 
-export const POST = createApiHandler({
-  POST: loginHandler,
-})

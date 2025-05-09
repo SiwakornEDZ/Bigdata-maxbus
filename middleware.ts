@@ -1,114 +1,94 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getAuthToken, verifyAuthToken } from "@/lib/auth/auth-utils"
-import type { UserRole } from "@/types"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { verifyAuth } from "./lib/auth"
 
-// Define public routes that don't require authentication
+// กำหนด routes ที่ไม่ต้องตรวจสอบสิทธิ์
 const publicRoutes = [
   "/login",
   "/register",
-  "/forgot-password",
-  "/reset-password",
   "/api/auth/login",
   "/api/auth/register",
-  "/api/auth/logout",
   "/api/check-env",
+  "/api/database/init",
 ]
-
-// Define routes that require specific roles
-const roleRestrictedRoutes: Record<string, UserRole[]> = {
-  "/admin": ["admin"],
-  "/api/admin": ["admin"],
-}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  if (isPublicRoute(pathname)) {
+  // ตรวจสอบว่าเป็น route ที่ไม่ต้องตรวจสอบสิทธิ์หรือไม่
+  if (
+    publicRoutes.some((route) => pathname.startsWith(route)) ||
+    pathname.startsWith("/_next") ||
+    pathname.includes("/favicon.ico")
+  ) {
     return NextResponse.next()
   }
 
-  // Check for authentication token
-  const token = getAuthToken(request)
-
-  if (!token) {
-    return redirectToLogin(request)
+  // สำหรับ OPTIONS request (CORS preflight)
+  if (request.method === "OPTIONS") {
+    return handleCors(request)
   }
 
+  // ตรวจสอบสิทธิ์สำหรับ routes อื่นๆ
   try {
-    // Verify token
-    const payload = await verifyAuthToken(token)
+    const token = request.cookies.get("auth-token")?.value
 
-    // Check role restrictions
-    const requiredRoles = getRequiredRolesForPath(pathname)
-
-    if (requiredRoles.length > 0 && !requiredRoles.includes(payload.role)) {
-      return NextResponse.redirect(new URL("/", request.url))
+    // ถ้าไม่มี token ให้ redirect ไปที่หน้า login
+    if (!token) {
+      const url = new URL("/login", request.url)
+      return NextResponse.redirect(url)
     }
 
-    // Add user info to request headers for downstream use
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set("x-user-id", payload.id)
-    requestHeaders.set("x-user-role", payload.role)
+    // ตรวจสอบความถูกต้องของ token
+    const verifyResult = await verifyAuth(token)
 
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
+    if (verifyResult.success && verifyResult.authenticated) {
+      const response = NextResponse.next()
+      // เพิ่ม headers สำหรับ CORS
+      if (pathname.startsWith("/api/")) {
+        addCorsHeaders(response)
+      }
+      return response
+    }
+
+    // ถ้าตรวจสอบไม่ผ่าน ให้ redirect ไปที่หน้า login
+    const url = new URL("/login", request.url)
+    return NextResponse.redirect(url)
   } catch (error) {
-    console.error("Authentication error:", error)
-    return redirectToLogin(request)
+    console.error("Middleware authentication error:", error)
+
+    // ถ้าเกิดข้อผิดพลาดในการตรวจสอบสิทธิ์ ให้ redirect ไปที่หน้า login
+    const url = new URL("/login", request.url)
+    return NextResponse.redirect(url)
   }
 }
 
-// Helper function to check if a route is public
-function isPublicRoute(pathname: string): boolean {
-  // Check exact matches
-  if (publicRoutes.includes(pathname)) {
-    return true
-  }
-
-  // Check static files and images
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/images") ||
-    pathname.startsWith("/favicon") ||
-    pathname.endsWith(".svg") ||
-    pathname.endsWith(".png") ||
-    pathname.endsWith(".jpg") ||
-    pathname.endsWith(".ico")
-  ) {
-    return true
-  }
-
-  return false
+// ฟังก์ชันสำหรับจัดการ CORS
+function handleCors(request: NextRequest) {
+  const response = new NextResponse(null, { status: 204 })
+  addCorsHeaders(response)
+  return response
 }
 
-// Helper function to get required roles for a path
-function getRequiredRolesForPath(pathname: string): UserRole[] {
-  // Check exact matches
-  if (roleRestrictedRoutes[pathname]) {
-    return roleRestrictedRoutes[pathname]
-  }
-
-  // Check path prefixes
-  for (const [route, roles] of Object.entries(roleRestrictedRoutes)) {
-    if (pathname.startsWith(route)) {
-      return roles
-    }
-  }
-
-  return []
+// ฟังก์ชันสำหรับเพิ่ม CORS headers
+function addCorsHeaders(response: NextResponse) {
+  response.headers.set("Access-Control-Allow-Origin", "*")
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+  response.headers.set("Access-Control-Max-Age", "86400")
+  return response
 }
 
-// Helper function to redirect to login
-function redirectToLogin(request: NextRequest): NextResponse {
-  const loginUrl = new URL("/login", request.url)
-  loginUrl.searchParams.set("from", request.nextUrl.pathname)
-  return NextResponse.redirect(loginUrl)
-}
-
+// ระบุ paths ที่ต้องการให้ middleware ทำงาน
 export const config = {
-  matcher: ["/((?!api/auth/register|api/auth/login|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 }
+

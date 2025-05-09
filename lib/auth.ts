@@ -226,3 +226,4 @@ export async function register(
     return { success: false, message: "Registration failed: " + error.message }
   }
 }
+

@@ -1570,3 +1570,4 @@ ${join.type} JOIN "${join.rightTable}" ON "${join.leftTable}"."${join.leftColumn
     </Card>
   )
 }
+

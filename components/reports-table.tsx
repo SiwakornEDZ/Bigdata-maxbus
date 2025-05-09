@@ -573,3 +573,4 @@ export function ReportsTable() {
     </div>
   )
 }
+

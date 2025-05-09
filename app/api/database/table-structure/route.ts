@@ -1,46 +1,25 @@
-import { NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { type NextRequest, NextResponse } from "next/server"
+import { databaseService } from "@/lib/services/database-service"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const tableName = searchParams.get("name")
+    const searchParams = request.nextUrl.searchParams
+    const tableName = searchParams.get("table")
 
     if (!tableName) {
-      return NextResponse.json({ success: false, error: "Table name is required" }, { status: 400 })
+      return NextResponse.json({ error: "Table name is required" }, { status: 400 })
     }
 
-    if (!sql) {
-      return NextResponse.json({ success: false, error: "Database connection not initialized" }, { status: 500 })
+    const tableInfo = await databaseService.getTableStructure(tableName)
+
+    if (!tableInfo) {
+      return NextResponse.json({ error: `Table '${tableName}' does not exist` }, { status: 404 })
     }
 
-    const columns = await sql`
-      SELECT column_name, data_type, is_nullable
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-      AND table_name = ${tableName}
-      ORDER BY ordinal_position;
-    `
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        name: tableName,
-        columns: columns.map((col) => ({
-          name: col.column_name,
-          type: col.data_type,
-          nullable: col.is_nullable === "YES",
-        })),
-      },
-    })
+    return NextResponse.json(tableInfo)
   } catch (error) {
     console.error("Error getting table structure:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error getting table structure",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Failed to get table structure" }, { status: 500 })
   }
 }
+

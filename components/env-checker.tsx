@@ -22,6 +22,7 @@ export function EnvChecker() {
         headers: {
           "Cache-Control": "no-cache",
         },
+        // Don't include credentials to avoid CORS issues
       })
 
       console.log("Environment check response status:", response.status)
@@ -34,18 +35,14 @@ export function EnvChecker() {
       const data = await response.json()
       console.log("Environment check data:", data)
 
-      if (!data) {
-        throw new Error("No data returned from environment check")
-      }
-
-      if (data.error) {
-        throw new Error(data.error)
+      if (!data.success) {
+        throw new Error(data.message || "Unknown error checking environment")
       }
 
       setEnvStatus(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error checking environment:", err)
-      setError(err?.message || "Unknown error checking environment. Please try again.")
+      setError(err.message || "Failed to check environment variables. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -131,3 +128,4 @@ export function EnvChecker() {
     </div>
   )
 }
+

@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server"
-import { createApiHandler } from "@/lib/utils/api-handler"
-import { getCurrentUser } from "@/lib/auth/auth-utils"
+import { cookies } from "next/headers"
+import { getUserFromToken } from "@/lib/auth"
 
-async function getMeHandler(): Promise<NextResponse> {
-  const user = await getCurrentUser()
+export async function GET() {
+  try {
+    const cookieStore = cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-  if (!user) {
-    return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 })
+    if (!token) {
+      return NextResponse.json({ user: null })
+    }
+
+    const user = await getUserFromToken(token)
+    return NextResponse.json({ user })
+  } catch (error) {
+    console.error("Error in /api/auth/me:", error)
+    return NextResponse.json({ user: null })
   }
-
-  return NextResponse.json({
-    success: true,
-    user,
-  })
 }
 
-export const GET = createApiHandler(
-  {
-    GET: getMeHandler,
-  },
-  { requireAuth: true },
-)

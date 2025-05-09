@@ -192,3 +192,4 @@ ${stats.executionTime < 0.1 ? "Fast Query Execution" : "Standard Query Execution
     </div>
   )
 }
+

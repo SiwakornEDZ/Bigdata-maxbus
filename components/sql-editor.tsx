@@ -720,3 +720,4 @@ export function SqlEditor() {
     </Card>
   )
 }
+

@@ -29,3 +29,4 @@ if (!fs.existsSync("package.json")) {
 }
 
 console.log("Dependency check complete")
+

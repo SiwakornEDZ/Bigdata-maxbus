@@ -2,3 +2,4 @@
 export default function MinimalPage() {
   return null
 }
+

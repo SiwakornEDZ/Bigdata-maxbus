@@ -11,22 +11,24 @@ import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
 
 export function RegisterForm() {
+  const [isLoading, setIsLoading] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const router = useRouter()
-  const { register, isLoading } = useAuth() // Use isLoading from auth context
+  const { register } = useAuth()
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
+    setIsLoading(true)
 
     try {
       const success = await register(name, email, password)
       if (success) {
         router.push("/")
       }
-    } catch (error) {
-      console.error("Registration error:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -105,3 +107,4 @@ export function RegisterForm() {
     </div>
   )
 }
+
