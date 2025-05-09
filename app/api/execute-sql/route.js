@@ -3,13 +3,13 @@ import { databaseService } from "@/lib/services/database-service"
 
 export async function POST(request) {
   try {
-    const { query, params } = await request.json()
+    const { sql, params } = await request.json()
 
-    if (!query) {
+    if (!sql) {
       return NextResponse.json({ error: "SQL query is required" }, { status: 400 })
     }
 
-    const result = await databaseService.executeQuery(query, params || [])
+    const result = await databaseService.executeQuery(sql, params || [])
 
     return NextResponse.json(result)
   } catch (error) {

@@ -4,9 +4,14 @@ export interface ColumnInfo {
   nullable: boolean
 }
 
+// กำหนด type สำหรับข้อมูลตาราง
 export interface TableInfo {
   name: string
-  columns: ColumnInfo[]
+  columns: {
+    name: string
+    type: string
+    nullable: boolean
+  }[]
   sampleData: any[]
   rowCount: number
 }
@@ -40,6 +45,7 @@ export interface ImportJob {
   updatedAt: string
 }
 
+// กำหนด type สำหรับผลลัพธ์ของ query
 export interface QueryResult {
   success: boolean
   data?: any[]

@@ -1,37 +1,7 @@
 import { neon } from "@neondatabase/serverless"
 
-// แก้ไขฟังก์ชัน createSqlClient เพื่อตรวจสอบ process.env ก่อนเข้าถึง DATABASE_URL
-const createSqlClient = () => {
-  // ตรวจสอบว่า process.env มีอยู่จริงก่อนเข้าถึง DATABASE_URL
-  if (!process.env || !process.env.DATABASE_URL) {
-    console.warn("DATABASE_URL is not defined")
-    throw new Error("DATABASE_URL is not configured")
-  }
-
-  try {
-    // สร้าง SQL client จาก connection string
-    return neon(process.env.DATABASE_URL)
-  } catch (error) {
-    console.error("Failed to initialize database connection:", error)
-    throw new Error(`Failed to initialize database connection: ${error.message}`)
-  }
-}
-
-// Export SQL client with error handling
-let sql
-try {
-  sql = createSqlClient()
-} catch (error) {
-  console.error("Error initializing SQL client:", error)
-  // Create a dummy SQL function that throws an error when called
-  sql = async () => {
-    throw new Error("Database connection not initialized")
-  }
-  // Add the unsafe method to maintain API compatibility
-  sql.unsafe = async () => {
-    throw new Error("Database connection not initialized")
-  }
-}
+// กำหนด type ให้กับ sql function เพื่อแก้ไขปัญหา TypeScript error
+const sql = neon(process.env.DATABASE_URL || "")
 
 export { sql }
 
@@ -53,17 +23,22 @@ export async function tableExists(tableName: string): Promise<boolean> {
 }
 
 // ฟังก์ชันดึงรายชื่อตารางทั้งหมด
-export async function getAllTables(): Promise<string[]> {
+export async function getAllTables() {
   try {
-    const tables = await sql`
+    if (!process.env || !process.env.DATABASE_URL) {
+      return []
+    }
+
+    const result = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
-      ORDER BY table_name;
+      ORDER BY table_name
     `
-    return tables.map((t) => t.table_name)
+
+    return result.rows.map((row) => row.table_name)
   } catch (error) {
-    console.error("Error getting all tables:", error)
+    console.error("Error getting tables:", error)
     return []
   }
 }
@@ -99,10 +74,25 @@ export const formatBytes = (bytes: number) => {
 // ฟังก์ชันทดสอบการเชื่อมต่อฐานข้อมูล
 export async function testConnection() {
   try {
+    if (!process.env || !process.env.DATABASE_URL) {
+      return {
+        connected: false,
+        error: "DATABASE_URL is not defined",
+      }
+    }
+
+    // ทดสอบการเชื่อมต่อโดยการ query ง่ายๆ
     const result = await sql`SELECT 1 as test`
-    return { connected: result[0]?.test === 1, error: null }
+
+    return {
+      connected: true,
+      error: null,
+    }
   } catch (error) {
     console.error("Database connection test failed:", error)
-    return { connected: false, error: error.message }
+    return {
+      connected: false,
+      error: error.message || "Failed to connect to database",
+    }
   }
 }

@@ -1,49 +1,46 @@
 import { NextResponse } from "next/server"
-import { sql } from "@/lib/db"
-import { getCurrentUser } from "@/lib/auth"
+import { databaseService } from "@/lib/services/database-service"
 
-export async function GET(request) {
+export async function GET() {
   try {
-    // Check authentication
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const tables = await databaseService.getAllTables()
+
+    // สร้างข้อมูลเพิ่มเติมสำหรับแต่ละตาราง
+    const tablesWithDetails = await Promise.all(
+      tables.map(async (tableName) => {
+        const structure = await databaseService.getTableStructure(tableName)
+        return {
+          table_name: tableName,
+          column_count: structure?.columns.length || 0,
+          table_size: 0, // ค่าเริ่มต้น
+        }
+      }),
+    )
+
+    return NextResponse.json(tablesWithDetails)
+  } catch (error) {
+    console.error("Error fetching tables:", error)
+    return NextResponse.json({ error: "Failed to fetch tables" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { tableName } = await request.json()
+
+    if (!tableName) {
+      return NextResponse.json({ error: "Table name is required" }, { status: 400 })
     }
 
-    // Get system tables (excluding PostgreSQL internal tables)
-    const systemTables = await sql`
-      SELECT table_name as name, 'system' as type
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-      AND table_name NOT LIKE 'pg_%'
-      AND table_name NOT IN (
-        SELECT table_name 
-        FROM import_jobs 
-        WHERE status = 'completed'
-      )
-      ORDER BY table_name
-    `
+    const result = await databaseService.dropTable(tableName)
 
-    // Get imported tables
-    const importedTables = await sql`
-      SELECT table_name as name, 'imported' as type
-      FROM import_jobs
-      WHERE status = 'completed'
-      AND created_by = ${user.email}
-      ORDER BY table_name
-    `
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
+    }
 
-    // Combine both types of tables
-    const tables = [...systemTables, ...importedTables]
-
-    return NextResponse.json(tables)
+    return NextResponse.json({ success: true, message: `Table ${tableName} deleted successfully` })
   } catch (error) {
-    console.error("Error fetching database tables:", error)
-    return NextResponse.json(
-      {
-        error: "Failed to fetch database tables",
-      },
-      { status: 500 },
-    )
+    console.error("Error deleting table:", error)
+    return NextResponse.json({ error: "Failed to delete table" }, { status: 500 })
   }
 }
